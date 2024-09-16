@@ -1,0 +1,151 @@
+services:
+  mysqldb:
+    image: mysql:8.4
+    container_name: ecf05-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "${DB_PORT}:${DB_PORT}"
+    volumes:
+      - ecf05-mysql-data:/var/lib/mysql
+      - ./mysql-db/user.sql:/docker-entrypoint-initdb.d/0_init.sql
+    restart: always
+    networks:
+      - ecf05-network
+
+  redis-cache:
+    image: redis:alpine
+    container_name: ecf05-redis
+    environment:
+        REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    volumes:
+      - ecf05-redis-data:/data
+    restart: always
+    networks:
+      - ecf05-network
+
+  authentication:
+    build:
+      context: ./server/authentication-service
+      dockerfile: Dockerfile
+    container_name: ecf05-authentication
+    environment:
+      PORT: ${AUTHENTICATION_SERVICE_PORT}
+      DB_HOST: mysqldb
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_SCHEMA: ${DB_SCHEMA}
+      ACTIVE_PROFILE: ${ACTIVE_PROFILE}
+    ports:
+      - "${AUTHENTICATION_SERVICE_PORT}:${AUTHENTICATION_SERVICE_PORT}"
+    depends_on:
+      - mysqldb
+      - redis-cache
+    restart: always
+    networks:
+      - ecf05-network
+
+  common-data-service:
+    build:
+      context: ./server/common-data-service
+      dockerfile: Dockerfile
+    container_name: ecf05-common-data-service
+    environment:
+      PORT: ${COMMON_DATA_SERVICE_PORT}
+      REDIS_HOST: redis-cache
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      DB_HOST: mysqldb
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_SCHEMA: ${DB_SCHEMA}
+      ACTIVE_PROFILE: ${ACTIVE_PROFILE}
+    ports:
+      - "${COMMON_DATA_SERVICE_PORT}:${COMMON_DATA_SERVICE_PORT}"
+    depends_on:
+      - mysqldb
+      - redis-cache
+    restart: always
+    networks:
+      - ecf05-network
+
+
+  payment-service:
+    build:
+      context: ./server/payment-service
+      dockerfile: Dockerfile
+    container_name: ecf05-payment-service
+    environment:
+      PORT: ${PAYMENT_SERVICE_PORT}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+    ports:
+      - "${PAYMENT_SERVICE_PORT}:${PAYMENT_SERVICE_PORT}"
+    depends_on:
+      - mysqldb
+      - redis-cache
+    restart: always
+    networks:
+      - ecf05-network
+
+  search-suggestion-service:
+    build:
+      context: ./server/search-suggestion-service
+      dockerfile: Dockerfile
+    container_name: ecf05-search-suggestion-service
+    environment:
+      PORT: ${SEARCH_SUGGESTION_SERVICE_PORT}
+      COMMON_DATA_SERVICE_URL: http://common-data-service:${COMMON_DATA_SERVICE_PORT}
+      ACTIVE_PROFILE: ${ACTIVE_PROFILE}
+    ports:
+      - "${SEARCH_SUGGESTION_SERVICE_PORT}:${SEARCH_SUGGESTION_SERVICE_PORT}"
+    depends_on:
+      - mysqldb
+      - redis-cache
+      - authentication
+      - common-data-service
+      - payment-service
+    restart: always
+    networks:
+      - ecf05-network
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: ecf05-client
+    environment:
+      PORT: ${REACT_APP_PORT}
+      REACT_CLIENT_URL: ${REACT_CLIENT_URL}
+      REACT_APP_ENVIRONMENT: ${REACT_APP_ENVIRONMENT}
+      REACT_APP_AUTHENTICATION_SERVICE_URL: ${REACT_APP_AUTHENTICATION_SERVICE_URL}
+      REACT_APP_COMMON_DATA_SERVICE_URL: ${REACT_APP_COMMON_DATA_SERVICE_URL}
+      REACT_APP_PAYMENT_SERVICE_URL: ${REACT_APP_PAYMENT_SERVICE_URL}
+      REACT_APP_SEARCH_SUGGESTION_SERVICE_URL: ${REACT_APP_SEARCH_SUGGESTION_SERVICE_URL}
+    ports:
+      - "80:${REACT_APP_PORT}"
+    restart: always
+    depends_on:
+      - mysqldb
+      - redis-cache
+      - authentication
+      - common-data-service
+      - payment-service
+      - search-suggestion-service
+    networks:
+        - ecf05-network
+
+
+networks:
+  ecf05-network:
+
+volumes:
+  ecf05-mysql-data:
+  ecf05-redis-data:
