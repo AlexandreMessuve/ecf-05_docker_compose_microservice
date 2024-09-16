@@ -87,7 +87,6 @@ services:
     container_name: ecf05-payment-service
     environment:
       PORT: ${PAYMENT_SERVICE_PORT}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
     ports:
       - "${PAYMENT_SERVICE_PORT}:${PAYMENT_SERVICE_PORT}"
     depends_on:
