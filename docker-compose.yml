@@ -48,8 +48,10 @@ services:
     ports:
       - "${AUTHENTICATION_SERVICE_PORT}:${AUTHENTICATION_SERVICE_PORT}"
     depends_on:
-      - mysqldb
-      - redis-cache
+      mysqldb:
+        condition: service_started
+      redis-cache:
+        condition: service_started
     restart: always
     networks:
       - ecf05-network
@@ -73,8 +75,10 @@ services:
     ports:
       - "${COMMON_DATA_SERVICE_PORT}:${COMMON_DATA_SERVICE_PORT}"
     depends_on:
-      - mysqldb
-      - redis-cache
+      mysqldb:
+        condition: service_started
+      redis-cache:
+        condition: service_started
     restart: always
     networks:
       - ecf05-network
@@ -90,8 +94,10 @@ services:
     ports:
       - "${PAYMENT_SERVICE_PORT}:${PAYMENT_SERVICE_PORT}"
     depends_on:
-      - mysqldb
-      - redis-cache
+      mysqldb:
+        condition: service_started
+      redis-cache:
+        condition: service_started
     restart: always
     networks:
       - ecf05-network
@@ -108,11 +114,16 @@ services:
     ports:
       - "${SEARCH_SUGGESTION_SERVICE_PORT}:${SEARCH_SUGGESTION_SERVICE_PORT}"
     depends_on:
-      - mysqldb
-      - redis-cache
-      - authentication
-      - common-data-service
-      - payment-service
+      mysqldb:
+        condition: service_started
+      redis-cache:
+        condition: service_started
+      authentication:
+        condition: service_started
+      common-data-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
     restart: always
     networks:
       - ecf05-network
@@ -122,24 +133,22 @@ services:
       context: ./client
       dockerfile: Dockerfile
     container_name: ecf05-client
-    environment:
-      PORT: ${REACT_APP_PORT}
-      REACT_CLIENT_URL: ${REACT_CLIENT_URL}
-      REACT_APP_ENVIRONMENT: ${REACT_APP_ENVIRONMENT}
-      REACT_APP_AUTHENTICATION_SERVICE_URL: ${REACT_APP_AUTHENTICATION_SERVICE_URL}
-      REACT_APP_COMMON_DATA_SERVICE_URL: ${REACT_APP_COMMON_DATA_SERVICE_URL}
-      REACT_APP_PAYMENT_SERVICE_URL: ${REACT_APP_PAYMENT_SERVICE_URL}
-      REACT_APP_SEARCH_SUGGESTION_SERVICE_URL: ${REACT_APP_SEARCH_SUGGESTION_SERVICE_URL}
     ports:
-      - "80:${REACT_APP_PORT}"
+      - "${REACT_APP_PORT}:${REACT_APP_PORT}"
     restart: always
     depends_on:
-      - mysqldb
-      - redis-cache
-      - authentication
-      - common-data-service
-      - payment-service
-      - search-suggestion-service
+      mysqldb:
+        condition: service_started
+      redis-cache:
+        condition: service_started
+      authentication:
+        condition: service_started
+      common-data-service:
+        condition: service_started
+      payment-service:
+        condition: service_started
+      search-suggestion-service:
+        condition: service_started
     networks:
         - ecf05-network
 
